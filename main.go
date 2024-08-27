@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
 	"io"
@@ -14,20 +15,11 @@ import (
 	"github.com/russross/blackfriday/v2"
 )
 
-const (
-	header = `<!DOCTYPE html
-	<html>
-		<head>
-			<meta http-equiv="content-type" content="text/html; charset=utf-8">
-			<title>Markdown Preview CLI Tool</title>
-		</head>
-		<body>
-	`
-	footer = `
-		</body>
-	</html>
-	`
-)
+//go:embed assets/header.html
+var header string
+
+//go:embed assets/footer.html
+var footer string
 
 // parseContent переводит входные данные input в формате Markdown в HTML.
 func parseContent(input []byte) []byte {
