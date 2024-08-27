@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -46,7 +46,9 @@ func saveHTML(outputFileName string, data []byte) error {
 }
 
 // run выполняет основной функционал программы.
-func run(filename string) error {
+// filename - Markdown-файл, который нужно просмотреть.
+// out - Writer, куда будет выведено имя временного файла с HTML.
+func run(filename string, out io.Writer) error {
 	input, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -54,8 +56,17 @@ func run(filename string) error {
 
 	html := parseContent(input)
 
-	outputFileName := fmt.Sprintf("%s.html", filepath.Base(filename))
-	fmt.Println(outputFileName)
+	// Создадим временный файл для сохранения HTML
+	tempFile, err := os.CreateTemp("", "mdp*.html")
+	if err != nil {
+		return err
+	}
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+
+	outputFileName := tempFile.Name()
+	fmt.Fprintln(out, outputFileName)
 
 	return saveHTML(outputFileName, html)
 }
@@ -69,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(*filenameFlag); err != nil {
+	if err := run(*filenameFlag, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
