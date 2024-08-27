@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"time"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
@@ -75,7 +76,13 @@ func preview(filename string) error {
 	}
 
 	// Открыть файл при помощи выбранной программы
-	return exec.Command(cmdPath, cmdParams...).Run()
+	err = exec.Command(cmdPath, cmdParams...).Run()
+
+	// Дать время внешней программе для открытия файла,
+	// прежде чем удалить его
+	// TODO: подчищать за собой при помощи сигналов, а не задержки.
+	time.Sleep(2 * time.Second)
+	return err
 }
 
 // run выполняет основной функционал программы.
@@ -112,6 +119,7 @@ func run(filename string, out io.Writer, skipPreview bool) error {
 		return nil
 	}
 
+	defer os.Remove(outputFileName)
 	return preview(outputFileName)
 }
 
