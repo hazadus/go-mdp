@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"os"
 	"os/exec"
@@ -15,24 +16,38 @@ import (
 	"github.com/russross/blackfriday/v2"
 )
 
-//go:embed assets/header.html
-var header string
+//go:embed assets/template.html
+var defaultTemplate string
 
-//go:embed assets/footer.html
-var footer string
+// content представляет контент для вставки в шаблон
+type content struct {
+	Title string
+	Body  template.HTML
+}
 
 // parseContent переводит входные данные input в формате Markdown в HTML.
-func parseContent(input []byte) []byte {
+func parseContent(input []byte) ([]byte, error) {
 	output := blackfriday.Run(input)
 	body := bluemonday.UGCPolicy().SanitizeBytes(output)
 
+	templ, err := template.New("mdp").Parse(defaultTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	c := content{
+		Title: "Markdown Preview CLI Tool",
+		Body:  template.HTML(body),
+	}
+
 	var buffer bytes.Buffer
 
-	buffer.WriteString(header)
-	buffer.Write(body)
-	buffer.WriteString(footer)
+	// Наполнить шаблон данными
+	if err := templ.Execute(&buffer, c); err != nil {
+		return nil, err
+	}
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // saveHTML сохраняет data в файл с именем outputFileName.
@@ -88,7 +103,10 @@ func run(filename string, out io.Writer, skipPreview bool) error {
 		return err
 	}
 
-	html := parseContent(input)
+	html, err := parseContent(input)
+	if err != nil {
+		return err
+	}
 
 	// Создадим временный файл для сохранения HTML
 	tempFile, err := os.CreateTemp("", "mdp*.html")
