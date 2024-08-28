@@ -26,13 +26,24 @@ type content struct {
 }
 
 // parseContent переводит входные данные input в формате Markdown в HTML.
-func parseContent(input []byte) ([]byte, error) {
+// Если указано имя файла templFileName, шаблон будет загружен из него.
+// Иначе, используется дефолтный шаблон.
+func parseContent(input []byte, templFileName string) ([]byte, error) {
 	output := blackfriday.Run(input)
 	body := bluemonday.UGCPolicy().SanitizeBytes(output)
 
+	// Загружаем дефолтный шаблон
 	templ, err := template.New("mdp").Parse(defaultTemplate)
 	if err != nil {
 		return nil, err
+	}
+
+	// Если указан файл с шаблоном, загрузим его
+	if templFileName != "" {
+		templ, err = template.ParseFiles(templFileName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	c := content{
@@ -97,13 +108,14 @@ func preview(filename string) error {
 // out - Writer, куда будет выведено имя временного файла с HTML,
 // skipPreview позволяет пропустить запуск системной программы просмотра
 // файла.
-func run(filename string, out io.Writer, skipPreview bool) error {
+// templFileName - "" или имя файла шаблона для выходного HTML-файла.
+func run(filename string, out io.Writer, skipPreview bool, templFileName string) error {
 	input, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 
-	html, err := parseContent(input)
+	html, err := parseContent(input, templFileName)
 	if err != nil {
 		return err
 	}
@@ -136,6 +148,7 @@ func run(filename string, out io.Writer, skipPreview bool) error {
 func main() {
 	filenameFlag := flag.String("file", "", "Файл в формате Markdown для просмотра")
 	skipPreviewFlag := flag.Bool("s", false, "Не запускать программу просмотра файла")
+	templFileName := flag.String("t", "", "Шаблон для формирования HTML-файла")
 	flag.Parse()
 
 	if *filenameFlag == "" {
@@ -143,7 +156,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(*filenameFlag, os.Stdout, *skipPreviewFlag); err != nil {
+	if err := run(*filenameFlag, os.Stdout, *skipPreviewFlag, *templFileName); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
